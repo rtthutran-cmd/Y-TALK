@@ -588,7 +588,9 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
                       : 'bg-white text-gray-800 shadow-sm'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{msg.text}</p>
+                  <p className="whitespace-pre-wrap" dangerouslySetInnerHTML={{
+  __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+}}></p>
                   {msg.isButton && msg.buttons && (
                     <div className="flex gap-2 mt-3">
                       {msg.buttons.map((btn, i) => (
@@ -651,5 +653,6 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
   </script>
 </body>
 </html>
+
 
 
