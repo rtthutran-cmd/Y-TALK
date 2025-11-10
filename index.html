@@ -172,14 +172,9 @@
           clearTimeout(typingTimer);
         }
 
-        const timer = setTimeout(() => {
-          setShowStillTyping(true);
-          const stillTypingTimer = setTimeout(() => {
-            setShowStillTyping(false);
-            processMessages(updatedPending);
-          }, 3000);
-          setTypingTimer(stillTypingTimer);
-        }, 4000);
+       const timer = setTimeout(() => {
+  processMessages(updatedPending);
+}, 2000);
         
         setTypingTimer(timer);
       };
@@ -667,3 +662,4 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
   </script>
 </body>
 </html>
+
