@@ -41,7 +41,6 @@
       const [input, setInput] = useState('');
       const [isLoading, setIsLoading] = useState(false);
       const [typingTimer, setTypingTimer] = useState(null);
-      const [showStillTyping, setShowStillTyping] = useState(false);
       const [conversationState, setConversationState] = useState({
         step: 'welcome',
         adult: null,
@@ -70,51 +69,14 @@
 
       useEffect(() => {
         scrollToBottom();
-      }, [messages, showStillTyping]);
+      }, [messages]);
 
       useEffect(() => {
-        loadState();
+        // Show welcome message on mount
+        addBotMessage("Hey astronaut 🧑‍🚀! Want to talk to an adult and don't know how to start? I'm here to help you prepare for that convo.\n\nLots of people find it hard to start a conversation, but we can always prepare and practice.\n\nTo begin, tell me, who would you like to talk to?");
       }, []);
 
-      useEffect(() => {
-        if (conversationState.step !== 'welcome') {
-          saveState();
-        }
-      }, [conversationState]);
-
-      const loadState = async () => {
-        try {
-          const result = await window.storage.get('conversation_state');
-          if (result && result.value) {
-            const saved = JSON.parse(result.value);
-            setConversationState(saved.state);
-            setMessages(saved.messages);
-          } else {
-            addBotMessage("Hey astronaut 🧑‍🚀! Want to talk to an adult and don't know how to start? I'm here to help you prepare for that convo.\n\nLots of people find it hard to start a conversation, but we can always prepare and practice.\n\nTo begin, tell me, who would you like to talk to?");
-          }
-        } catch (error) {
-          addBotMessage("Hey astronaut 🧑‍🚀! Want to talk to an adult and don't know how to start? I'm here to help you prepare for that convo.\n\nLots of people find it hard to start a conversation, but we can always prepare and practice.\n\nTo begin, tell me, who would you like to talk to?");
-        }
-      };
-
-      const saveState = async () => {
-        try {
-          await window.storage.set('conversation_state', JSON.stringify({
-            state: conversationState,
-            messages: messages,
-            timestamp: new Date().toISOString()
-          }));
-        } catch (error) {
-          console.error('Failed to save state:', error);
-        }
-      };
-
-      const resetConversation = async () => {
-        try {
-          await window.storage.delete('conversation_state');
-        } catch (error) {
-          console.error('Failed to delete state:', error);
-        }
+      const resetConversation = () => {
         setMessages([]);
         setConversationState({
           step: 'welcome',
@@ -172,19 +134,11 @@
           clearTimeout(typingTimer);
         }
 
-       const timer = setTimeout(() => {
-  processMessages(updatedPending);
-}, 2000);
+        const timer = setTimeout(() => {
+          processMessages(updatedPending);
+        }, 2000);
         
         setTypingTimer(timer);
-      };
-
-      const handleContinue = () => {
-        if (typingTimer) {
-          clearTimeout(typingTimer);
-        }
-        setShowStillTyping(false);
-        processMessages(conversationState.pendingMessages);
       };
 
       const processMessages = async (pendingMessages) => {
@@ -209,6 +163,23 @@
           });
 
           const data = await response.json();
+          
+          // Check if we got an error response
+          if (data.error) {
+            console.error('API Error:', data.error);
+            addBotMessage("Sorry, I'm having trouble connecting right now. Can you try again?");
+            setIsLoading(false);
+            return;
+          }
+          
+          // Check if content exists and is an array
+          if (!data.content || !Array.isArray(data.content)) {
+            console.error('Invalid API response:', data);
+            addBotMessage("Sorry, I'm having trouble connecting right now. Can you try again?");
+            setIsLoading(false);
+            return;
+          }
+          
           const botResponse = data.content.map(item => item.type === 'text' ? item.text : '').join('\n');
           
           const newState = parseAndUpdateState(botResponse, combinedMessage);
@@ -267,7 +238,7 @@ Once you have BOTH adult and problem:
 - Summarize: "Got it. You're planning to talk to your [adult] about [theme]."
 - Then IMMEDIATELY transition to Step 2 by saying EXACTLY:
 
-"There's something called the **Whole Message Approach**. In a whole message, you say **what happened, what you think, how you feel, and what you want to happen.**
+"There's something called the **Whole Message Approach**. In a whole message, you say **what happened**, **what you think**, **how you feel**, and **what you want to happen**.
 
 Not every situation will require you to use all 4, but let's go through each one, and then decide what part you want to say.
 
@@ -589,8 +560,8 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
                   }`}
                 >
                   <p className="whitespace-pre-wrap" dangerouslySetInnerHTML={{
-  __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-}}></p>
+                    __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                  }}></p>
                   {msg.isButton && msg.buttons && (
                     <div className="flex gap-2 mt-3">
                       {msg.buttons.map((btn, i) => (
@@ -646,14 +617,10 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
           </div>
         </div>
       );
-
     };
-// Render the app
+
+    // Render the app
     ReactDOM.render(<ConversationCoach />, document.getElementById('root'));
   </script>
 </body>
 </html>
-
-
-
-
