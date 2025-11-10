@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversation Coach</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body, html, #root {
+      height: 100%;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    
+    // Lucide icons as inline SVG components
+    const Send = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    );
+    
+    const RotateCcw = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="1 4 1 10 7 10"></polyline>
+        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+      </svg>
+    );
+
+    const ConversationCoach = () => {
+      const [messages, setMessages] = useState([]);
+      const [input, setInput] = useState('');
+      const [isLoading, setIsLoading] = useState(false);
+      const [typingTimer, setTypingTimer] = useState(null);
+      const [showStillTyping, setShowStillTyping] = useState(false);
+      const [conversationState, setConversationState] = useState({
+        step: 'welcome',
+        adult: null,
+        problem_description: null,
+        problem_theme: null,
+        observation_text_raw: null,
+        thought_text_raw: null,
+        feeling_text_raw: null,
+        want_text_raw: null,
+        observation_text_final: null,
+        thought_text_final: null,
+        feeling_text_final: null,
+        want_text_final: null,
+        tips_requested: false,
+        currentSubStep: null,
+        pendingMessages: [],
+        isMentalHealth: false
+      });
+      
+      const messagesEndRef = useRef(null);
+      const inputRef = useRef(null);
+
+      const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      };
+
+      useEffect(() => {
+        scrollToBottom();
+      }, [messages, showStillTyping]);
+
+      useEffect(() => {
+        loadState();
+      }, []);
+
+      useEffect(() => {
+        if (conversationState.step !== 'welcome') {
+          saveState();
+        }
+      }, [conversationState]);
+
+      const loadState = async () => {
+        try {
+          const result = await window.storage.get('conversation_state');
+          if (result && result.value) {
+            const saved = JSON.parse(result.value);
+            setConversationState(saved.state);
+            setMessages(saved.messages);
+          } else {
+            addBotMessage("Hey astronaut 🧑‍🚀! Want to talk to an adult and don't know how to start? I'm here to help you prepare for that convo.\n\nLots of people find it hard to start a conversation, but we can always prepare and practice.\n\nTo begin, tell me, who would you like to talk to?");
+          }
+        } catch (error) {
+          addBotMessage("Hey astronaut 🧑‍🚀! Want to talk to an adult and don't know how to start? I'm here to help you prepare for that convo.\n\nLots of people find it hard to start a conversation, but we can always prepare and practice.\n\nTo begin, tell me, who would you like to talk to?");
+        }
+      };
+
+      const saveState = async () => {
+        try {
+          await window.storage.set('conversation_state', JSON.stringify({
+            state: conversationState,
+            messages: messages,
+            timestamp: new Date().toISOString()
+          }));
+        } catch (error) {
+          console.error('Failed to save state:', error);
+        }
+      };
+
+      const resetConversation = async () => {
+        try {
+          await window.storage.delete('conversation_state');
+        } catch (error) {
+          console.error('Failed to delete state:', error);
+        }
+        setMessages([]);
+        setConversationState({
+          step: 'welcome',
+          adult: null,
+          problem_description: null,
+          problem_theme: null,
+          observation_text_raw: null,
+          thought_text_raw: null,
+          feeling_text_raw: null,
+          want_text_raw: null,
+          observation_text_final: null,
+          thought_text_final: null,
+          feeling_text_final: null,
+          want_text_final: null,
+          tips_requested: false,
+          currentSubStep: null,
+          pendingMessages: [],
+          isMentalHealth: false
+        });
+        addBotMessage("Hey astronaut 🧑‍🚀! Want to talk to an adult and don't know how to start? I'm here to help you prepare for that convo.\n\nLots of people find it hard to start a conversation, but we can always prepare and practice.\n\nTo begin, tell me, who would you like to talk to?");
+      };
+
+      const addBotMessage = (text, isButton = false, buttons = []) => {
+        setMessages(prev => [...prev, { 
+          type: 'bot', 
+          text, 
+          isButton,
+          buttons,
+          timestamp: Date.now() 
+        }]);
+      };
+
+      const addUserMessage = (text) => {
+        setMessages(prev => [...prev, { 
+          type: 'user', 
+          text, 
+          timestamp: Date.now() 
+        }]);
+      };
+
+      const handleSend = () => {
+        if (!input.trim() || isLoading) return;
+        
+        const userMessage = input.trim();
+        addUserMessage(userMessage);
+        setInput('');
+        
+        const updatedPending = [...conversationState.pendingMessages, userMessage];
+        setConversationState(prev => ({
+          ...prev,
+          pendingMessages: updatedPending
+        }));
+
+        if (typingTimer) {
+          clearTimeout(typingTimer);
+        }
+
+        const timer = setTimeout(() => {
+          setShowStillTyping(true);
+          const stillTypingTimer = setTimeout(() => {
+            setShowStillTyping(false);
+            processMessages(updatedPending);
+          }, 3000);
+          setTypingTimer(stillTypingTimer);
+        }, 4000);
+        
+        setTypingTimer(timer);
+      };
+
+      const handleContinue = () => {
+        if (typingTimer) {
+          clearTimeout(typingTimer);
+        }
+        setShowStillTyping(false);
+        processMessages(conversationState.pendingMessages);
+      };
+
+      const processMessages = async (pendingMessages) => {
+        if (pendingMessages.length === 0) return;
+        
+        setIsLoading(true);
+        const combinedMessage = pendingMessages.join('\n');
+        
+        try {
+          const systemPrompt = buildSystemPrompt();
+          const conversationHistory = buildConversationHistory(combinedMessage);
+          
+          const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              system: systemPrompt,
+              messages: conversationHistory
+            })
+          });
+
+          const data = await response.json();
+          const botResponse = data.content.map(item => item.type === 'text' ? item.text : '').join('\n');
+          
+          const newState = parseAndUpdateState(botResponse, combinedMessage);
+          setConversationState(prev => ({
+            ...prev,
+            ...newState,
+            pendingMessages: []
+          }));
+          
+          addBotMessage(botResponse);
+          
+        } catch (error) {
+          console.error('API Error:', error);
+          addBotMessage("Sorry, I'm having trouble connecting right now. Can you try again?");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      const buildSystemPrompt = () => {
+        const basePrompt = `You are a warm, empathetic conversation coach helping middle school and high school students prepare to talk to adults. Your tone is like a supportive older sibling - warm, non-judgmental, and encouraging. Use simple language.
+
+Current conversation state:
+- Step: ${conversationState.step}
+- Adult: ${conversationState.adult || 'not identified'}
+- Problem: ${conversationState.problem_description || 'not identified'}
+- Theme: ${conversationState.problem_theme || 'not identified'}
+- Mental health conversation: ${conversationState.isMentalHealth}
+
+Guidelines:
+1. Keep responses concise (2-4 sentences usually)
+2. Ask one question at a time
+3. Use casual language ("Aight!", "Okie!", "Got it")
+4. Be encouraging and validating, but not overly enthusiastic - keep it chill and genuine
+5. If detecting strong emotions, self-harm, or mental health topics, use a softer, more empathetic tone
+6. Never be judgmental
+
+Step-specific instructions:`;
+
+        if (conversationState.step === 'welcome' || conversationState.step === 'identification') {
+          return basePrompt + `
+You're in the identification phase. Help the user identify:
+1. WHO they want to talk to (adult)
+2. WHAT they want to talk about (problem)
+
+Responses to look for:
+- Adults: teacher, mom, dad, parent, brother, sister, principal, doctor, nurse, boss, cousin, aunt, uncle, grandma, grandpa, coach
+- Problem themes: school, family, friends, future, self, wants
+- Mental health keywords: depressed, anxious, self-harm, suicide, therapist, counselor, psychologist, hurt myself
+
+If user only gives one (adult OR problem), ask for the other.
+If response is vague ("everything sucks"), gently ask them to pick one specific thing.
+If off-topic, use humor to redirect: "Haha, [word]! You're funny! But let's get back to what you want to talk about."
+
+Once you have BOTH adult and problem:
+- Summarize: "Got it. You're planning to talk to your [adult] about [theme]."
+- Then IMMEDIATELY transition to Step 2 by saying EXACTLY:
+
+"There's something called the **Whole Message Approach**. In a whole message, you say what happened, what you think, how you feel, and what you want to happen.
+
+Not every situation will require you to use all 4, but let's go through each one, and then decide what part you want to say.
+
+First, what happened? Tell me your side of the story"
+
+DO NOT add any other bridging text between the summary and the Whole Message intro.`;
+        }
+
+        if (conversationState.step === 'whole_message') {
+          const subStep = conversationState.currentSubStep || 'intro';
+          return basePrompt + `
+You're teaching the Whole Message Approach. Current substep: ${subStep}
+
+Substeps in order:
+1. intro - Explain: "There's something called the Whole Message Approach. In a whole message, you say what happened, what you think, how you feel, and what you want to happen."
+2. observation - Ask: "First, what happened? Tell me your side of the story"
+3. thought - Ask: "What do you think about this situation?"
+4. feeling - Ask: "How does this situation make you feel?" (validate first: "I can see why this is frustrating")
+5. want - Ask: "What do you want to happen when you talk to [adult]?"
+6. summary - Show all four parts and ask if they want to rephrase
+
+Current data collected:
+- Observation: ${conversationState.observation_text_raw || 'not yet'}
+- Thought: ${conversationState.thought_text_raw || 'not yet'}
+- Feeling: ${conversationState.feeling_text_raw || 'not yet'}
+- Want: ${conversationState.want_text_raw || 'not yet'}
+
+If user is unclear ("idk"), offer to give an example based on what they've shared.
+If user jumps to "I want to tell them...", acknowledge and ask if they want to add context.`;
+        }
+
+        if (conversationState.step === 'rephrase') {
+          return basePrompt + `
+Help the user rephrase their Whole Message into a clear, assertive script they can use.
+
+Create a natural script that includes:
+- Observation: "When [what happened]..."
+- Thought: "I thought [their interpretation]..."
+- Feeling: "That made me feel [emotion] because..."
+- Want: "I would appreciate if [their request]..."
+
+Make it sound like a real teenager talking, not overly formal. After showing the script, ask: "What do you think of this script?"
+
+Once they approve, say something positive like "Great! You're all set then. You've got a clear way to explain the whole situation to your [adult], and it sounds like you're ready to have that conversation."
+
+Then IMMEDIATELY ask: "Want some tips before you start?"`;
+        }
+
+        if (conversationState.step === 'ask_for_tips') {
+          return basePrompt + `
+The user just finished creating their Whole Message script. You asked "Want some tips before you start?"
+
+Wait for their response (yes/no). 
+- If yes, move to providing tips.
+- If no, say something encouraging like "Got it. Good luck with your conversation! Let me know how it goes and we can talk more about it. 🚀"`;
+        }
+
+        if (conversationState.step === 'tips_before') {
+          return basePrompt + `
+Provide "Tips Before" the conversation. Say EXACTLY:
+
+"Great. First, a few tips before you start:
+• Pick a calm moment to talk, when everyone is not busy. Choose a place you feel comfortable in.
+• Plan out what you want to say and what you want from the conversation (we already did that!). Try writing it down
+• Rehearse the conversation (with yourself or with a friend/someone you trust)
+• Try your best to stay calm (we have a few lessons on this in the Coping with Stress and Emotions module)
+• Be open-minded: you can't be sure how they will act, so be open to whatever might happen.
+
+Do you want tips for during the conversation?"
+
+Wait for yes/no response.`;
+        }
+
+        if (conversationState.step === 'tips_during') {
+          return basePrompt + `
+Provide "Tips During" the conversation. Say EXACTLY:
+
+"Some tips for having the conversation:
+• Don't put it off. Often the hardest part is starting the conversation. You might never feel 100% ready, so just do it anyway.
+• Be clear and open about what you want to talk about from the beginning. 'I need to tell you about a problem and I need your advice' or 'Can we talk about [blank]'
+• Talk through your Whole Message: observation, thought, feeling, want
+• Focus on how you feel and your thoughts
+• Give your adult time to respond
+• If you are struggling with the conversation, it is ok to take a break and collect your thoughts.
+
+Do you want to learn about possible adult responses?"
+
+Wait for yes/no response.`;
+        }
+
+        if (conversationState.step === 'adult_responses') {
+          return basePrompt + `
+Present the adult responses options. Say EXACTLY:
+
+"Here are some common bad responses you might face. Choose 1 to read more:
+
+1. They minimize your problems or opinions
+2. They feel hurt and make it about them
+3. They make you feel guilty
+4. They don't want to talk/are too busy
+
+Just type the number you want to learn about."
+
+Wait for user to choose 1, 2, 3, or 4.`;
+        }
+
+        if (conversationState.step === 'adult_response_1') {
+          return basePrompt + `
+User chose option 1. Provide this EXACT response:
+
+"They minimize your problems or opinions: This might happen when they think what you are going through is just 'childish problems' or 'normal teenage stuff'. Or they might dismiss your opinions, make jokes, or not take it seriously because of your age.
+
+Even if your problem is typical for teenagers, it is still a problem you are struggling with and is important to you. Take the time to explain further or give examples of what you are struggling with and how it is affecting you. If you need help to convey your thoughts and ideas, consider presenting it differently using the Whole Message approach. Be clear that you did spend time thinking about this."
+
+Then say: "Got it. Good luck with your conversation! Let me know how it goes and we can talk more about it. 🚀"`;
+        }
+
+        if (conversationState.step === 'adult_response_2') {
+          return basePrompt + `
+User chose option 2. Provide this EXACT response:
+
+"They make it about them: When you share that something is making you sad or disappointed, sometimes the adult might feel hurt or misunderstood. They might say something like 'Why are you blaming me? I did it because it's what's best for you.'
+
+Rather than telling them what they need to change, focus on what you need help with to get better or feel better, and how they might help you to do that. This will make it easier for them to listen to and to understand that you are just trying to seek connections, not judgment."
+
+Then say: "Got it. Good luck with your conversation! Let me know how it goes and we can talk more about it. 🚀"`;
+        }
+
+        if (conversationState.step === 'adult_response_3') {
+          return basePrompt + `
+User chose option 3. Provide this EXACT response:
+
+"They might try to make you feel guilty: They might try to make you feel guilty about somebody else's actions or about having a problem at all. For example, they could say 'You have a good life, a house, and food to eat, why would you feel unhappy?'
+
+Explain that even though you have a 'good life', you are still unhappy and this is a sign something isn't right and that you need help."
+
+Then say: "Got it. Good luck with your conversation! Let me know how it goes and we can talk more about it. 🚀"`;
+        }
+
+        if (conversationState.step === 'adult_response_4') {
+          return basePrompt + `
+User chose option 4. Provide guidance about adults who don't want to talk or are too busy.
+
+Then say: "Got it. Good luck with your conversation! Let me know how it goes and we can talk more about it. 🚀"`;
+        }
+
+        return basePrompt;
+      };
+
+      const buildConversationHistory = (newMessage) => {
+        const history = [];
+        
+        const recentMessages = messages.slice(-6);
+        recentMessages.forEach(msg => {
+          if (msg.type === 'user') {
+            history.push({ role: 'user', content: msg.text });
+          } else {
+            history.push({ role: 'assistant', content: msg.text });
+          }
+        });
+        
+        history.push({ role: 'user', content: newMessage });
+        
+        return history;
+      };
+
+      const parseAndUpdateState = (botResponse, userMessage) => {
+        const updates = {};
+        const lowerUser = userMessage.toLowerCase();
+        const lowerBot = botResponse.toLowerCase();
+
+        const mentalHealthKeywords = ['depressed', 'anxiety', 'anxious', 'self-harm', 'hurt myself', 'kill myself', 'suicide', 'suicidal', 'therapist', 'counselor', 'psychologist', 'mental health'];
+        if (mentalHealthKeywords.some(kw => lowerUser.includes(kw))) {
+          updates.isMentalHealth = true;
+        }
+
+        if (conversationState.step === 'welcome' || conversationState.step === 'identification') {
+          const adultKeywords = ['teacher', 'mom', 'dad', 'parent', 'mother', 'father', 'brother', 'sister', 'principal', 'doctor', 'nurse', 'boss', 'cousin', 'aunt', 'uncle', 'grandma', 'grandpa', 'coach'];
+          const foundAdult = adultKeywords.find(kw => lowerUser.includes(kw));
+          if (foundAdult && !conversationState.adult) {
+            updates.adult = foundAdult;
+          }
+
+          if (userMessage.length > 10 && !conversationState.problem_description) {
+            updates.problem_description = userMessage;
+            
+            if (lowerUser.includes('grade') || lowerUser.includes('school') || lowerUser.includes('test') || lowerUser.includes('homework') || lowerUser.includes('bully')) {
+              updates.problem_theme = 'school';
+            } else if (lowerUser.includes('parent') || lowerUser.includes('mom') || lowerUser.includes('dad') || lowerUser.includes('family') || lowerUser.includes('sibling')) {
+              updates.problem_theme = 'family';
+            } else if (lowerUser.includes('friend') || lowerUser.includes('lonely')) {
+              updates.problem_theme = 'friends';
+            } else if (lowerUser.includes('future') || lowerUser.includes('career') || lowerUser.includes('college') || lowerUser.includes('university') || lowerUser.includes('study')) {
+              updates.problem_theme = 'future';
+            } else if (lowerUser.includes('depressed') || lowerUser.includes('anxious') || lowerUser.includes('sad') || lowerUser.includes('hate myself') || lowerUser.includes('frustrated')) {
+              updates.problem_theme = 'self';
+            } else if (lowerUser.includes('want') || lowerUser.includes('buy') || lowerUser.includes('get')) {
+              updates.problem_theme = 'wants';
+            }
+          }
+
+          if ((updates.adult || conversationState.adult) && (updates.problem_description || conversationState.problem_description)) {
+            updates.step = 'whole_message';
+            updates.currentSubStep = 'intro';
+          } else {
+            updates.step = 'identification';
+          }
+        }
+
+        if (conversationState.step === 'whole_message') {
+          const currentSub = conversationState.currentSubStep;
+          
+          if (currentSub === 'intro' && lowerBot.includes('what happened')) {
+            updates.currentSubStep = 'observation';
+          } else if (currentSub === 'observation' && userMessage.length > 5) {
+            updates.observation_text_raw = userMessage;
+            updates.currentSubStep = 'thought';
+          } else if (currentSub === 'thought' && userMessage.length > 5) {
+            updates.thought_text_raw = userMessage;
+            updates.currentSubStep = 'feeling';
+          } else if (currentSub === 'feeling' && userMessage.length > 2) {
+            updates.feeling_text_raw = userMessage;
+            updates.currentSubStep = 'want';
+          } else if (currentSub === 'want' && userMessage.length > 5) {
+            updates.want_text_raw = userMessage;
+            updates.currentSubStep = 'summary';
+          } else if (currentSub === 'summary' && (lowerUser.includes('rephrase') || lowerUser.includes('yes') || lowerUser.includes('yeah'))) {
+            updates.step = 'rephrase';
+          }
+        }
+
+        if (conversationState.step === 'rephrase') {
+          if (lowerUser.includes('good') || lowerUser.includes('ok') || lowerUser.includes('yes') || lowerUser.includes('yeah') || lowerUser.includes('perfect') || lowerUser.includes('sounds good')) {
+            updates.step = 'ask_for_tips';
+          }
+        }
+
+        if (conversationState.step === 'ask_for_tips') {
+          if (lowerUser.includes('yes') || lowerUser.includes('yeah') || lowerUser.includes('sure') || lowerUser.includes('ok')) {
+            updates.step = 'tips_before';
+            updates.tips_requested = true;
+          } else if (lowerUser.includes('no') || lowerUser.includes('nah')) {
+            updates.step = 'complete';
+          }
+        }
+
+        if (conversationState.step === 'tips_before') {
+          if (lowerUser.includes('yes') || lowerUser.includes('yeah') || lowerUser.includes('sure') || lowerUser.includes('ok')) {
+            updates.step = 'tips_during';
+          } else if (lowerUser.includes('no') || lowerUser.includes('nah')) {
+            updates.step = 'complete';
+          }
+        }
+
+        if (conversationState.step === 'tips_during') {
+          if (lowerUser.includes('yes') || lowerUser.includes('yeah') || lowerUser.includes('sure') || lowerUser.includes('ok')) {
+            updates.step = 'adult_responses';
+          } else if (lowerUser.includes('no') || lowerUser.includes('nah')) {
+            updates.step = 'complete';
+          }
+        }
+
+        if (conversationState.step === 'adult_responses') {
+          if (lowerUser.includes('1') || lowerUser.includes('minimize')) {
+            updates.step = 'adult_response_1';
+          } else if (lowerUser.includes('2') || lowerUser.includes('hurt') || lowerUser.includes('about them')) {
+            updates.step = 'adult_response_2';
+          } else if (lowerUser.includes('3') || lowerUser.includes('guilt')) {
+            updates.step = 'adult_response_3';
+          } else if (lowerUser.includes('4') || lowerUser.includes('busy') || lowerUser.includes('don\'t want')) {
+            updates.step = 'adult_response_4';
+          }
+        }
+
+        if (conversationState.step.startsWith('adult_response_')) {
+          updates.step = 'complete';
+        }
+
+        return updates;
+      };
+
+      const handleButtonClick = (action) => {
+        if (action === 'tips_yes') {
+          addUserMessage('Yes');
+          processMessages(['Yes, I want tips']);
+        } else if (action === 'tips_no') {
+          addUserMessage('No thanks');
+          addBotMessage("Got it. Good luck with your conversation! Let me know how it goes and we can talk more about it. 🚀");
+        }
+      };
+
+      return (
+        <div className="flex flex-col h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+          <div className="bg-white shadow-sm border-b border-gray-200 p-4 flex justify-between items-center">
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">Conversation Coach 🧑‍🚀</h1>
+              <p className="text-sm text-gray-500">Prepare to talk to adults</p>
+            </div>
+            <button
+              onClick={resetConversation}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-700 transition-colors"
+            >
+              <RotateCcw size={16} />
+              Start Over
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                    msg.type === 'user'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white text-gray-800 shadow-sm'
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap">{msg.text}</p>
+                  {msg.isButton && msg.buttons && (
+                    <div className="flex gap-2 mt-3">
+                      {msg.buttons.map((btn, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleButtonClick(btn.action)}
+                          className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          {btn.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            
+            {showStillTyping && (
+              <div className="flex justify-center">
+                <button
+                  onClick={handleContinue}
+                  className="px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm hover:bg-purple-200 transition-colors"
+                >
+                  Still typing? Keep going ⏳
+                </button>
+              </div>
+            )}
+            
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-white rounded-2xl px-4 py-3 shadow-sm">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="bg-white border-t border-gray-200 p-4">
+            <div className="flex gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="Type your message..."
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSend}
+                disabled={isLoading || !input.trim()}
+                className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                <Send size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
