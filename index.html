@@ -606,17 +606,6 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
               </div>
             ))}
             
-            {showStillTyping && (
-              <div className="flex justify-center">
-                <button
-                  onClick={handleContinue}
-                  className="px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm hover:bg-purple-200 transition-colors"
-                >
-                  Still typing? Keep going ⏳
-                </button>
-              </div>
-            )}
-            
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-white rounded-2xl px-4 py-3 shadow-sm">
@@ -662,4 +651,5 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
   </script>
 </body>
 </html>
+
 
