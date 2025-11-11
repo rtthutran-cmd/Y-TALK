@@ -139,6 +139,7 @@
         }, 2000);
         
         setTypingTimer(timer);
+        inputRef.current?.focus();
       };
 
       const processMessages = async (pendingMessages) => {
@@ -624,3 +625,4 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
   </script>
 </body>
 </html>
+
