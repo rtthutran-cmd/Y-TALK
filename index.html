@@ -116,31 +116,34 @@
         }]);
       };
 
-      const handleSend = () => {
-        if (!input.trim() || isLoading) return;
-        
-        const userMessage = input.trim();
-        addUserMessage(userMessage);
-        setInput('');
-        
-        const updatedPending = [...conversationState.pendingMessages, userMessage];
-        setConversationState(prev => ({
-          ...prev,
-          pendingMessages: updatedPending
-        }));
+     const handleSend = () => {
+  if (!input.trim() || isLoading) return;
+  
+  const userMessage = input.trim();
+  addUserMessage(userMessage);
+  setInput('');
+  
+  const updatedPending = [...conversationState.pendingMessages, userMessage];
+  setConversationState(prev => ({
+    ...prev,
+    pendingMessages: updatedPending
+  }));
 
-        if (typingTimer) {
-          clearTimeout(typingTimer);
-        }
+  if (typingTimer) {
+    clearTimeout(typingTimer);
+  }
 
-        const timer = setTimeout(() => {
-          processMessages(updatedPending);
-        }, 2000);
-        
-        setTypingTimer(timer);
-        inputRef.current?.focus();
-      };
-
+  const timer = setTimeout(() => {
+    processMessages(updatedPending);
+  }, 2000);
+  
+  setTypingTimer(timer);
+  
+  // Keep keyboard visible on mobile
+  setTimeout(() => {
+    inputRef.current?.focus();
+  }, 100);
+};
       const processMessages = async (pendingMessages) => {
         if (pendingMessages.length === 0) return;
         
@@ -189,13 +192,16 @@
           
           addBotMessage(botResponse);
           
-        } catch (error) {
-          console.error('API Error:', error);
-          addBotMessage("Sorry, I'm having trouble connecting right now. Can you try again?");
-        } finally {
-          setIsLoading(false);
-        }
-      };
+      } catch (error) {
+  console.error('API Error:', error);
+  addBotMessage("Sorry, I'm having trouble connecting right now. Can you try again?");
+} finally {
+  setIsLoading(false);
+  // Refocus input after bot responds
+  setTimeout(() => {
+    inputRef.current?.focus();
+  }, 100);
+}
 
       const buildSystemPrompt = () => {
         const basePrompt = `You are a warm, empathetic conversation coach helping middle school and high school students prepare to talk to adults. Your tone is like a supportive older sibling - warm, non-judgmental, and encouraging. Use simple language.
@@ -641,5 +647,6 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
   </script>
 </body>
 </html>
+
 
 
