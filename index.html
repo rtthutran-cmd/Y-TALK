@@ -72,7 +72,6 @@
       }, [messages]);
 
       useEffect(() => {
-        // Show welcome message on mount
         addBotMessage("Hey astronaut 🧑‍🚀! Want to talk to an adult and don't know what to say? I can help you write a draft.\n\nLots of people find it hard to start a conversation, but we can always prepare and practice.\n\nTo begin, tell me, who would you like to talk to?");
       }, []);
 
@@ -96,7 +95,7 @@
           pendingMessages: [],
           isMentalHealth: false
         });
-        addBotMessage("Hey astronaut 🧑‍🚀! Want to talk to an adult and don't know how to start? I'm here to help you prepare for that convo.\n\nLots of people find it hard to start a conversation, but we can always prepare and practice.\n\nTo begin, tell me, who would you like to talk to?");
+        addBotMessage("Hey astronaut 🧑‍🚀! Want to talk to an adult and don't know what to say? I can help you write a draft.\n\nLots of people find it hard to start a conversation, but we can always prepare and practice.\n\nTo begin, tell me, who would you like to talk to?");
       };
 
       const addBotMessage = (text, isButton = false, buttons = []) => {
@@ -165,7 +164,6 @@
 
           const data = await response.json();
           
-          // Check if we got an error response
           if (data.error) {
             console.error('API Error:', data.error);
             addBotMessage("Sorry, I'm having trouble connecting right now. Can you try again?");
@@ -173,7 +171,6 @@
             return;
           }
           
-          // Check if content exists and is an array
           if (!data.content || !Array.isArray(data.content)) {
             console.error('Invalid API response:', data);
             addBotMessage("Sorry, I'm having trouble connecting right now. Can you try again?");
@@ -548,57 +545,32 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-           {messages.map((msg, idx) => (
-  <div
-    key={idx}
-    className={`flex items-end ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
-  >
-    {msg.type === 'bot' && (
-      <img
-        src="public/bot-avatar.jpg"
-        alt="Bot Avatar"
-        className="w-10 h-10 rounded-full mr-2 shadow-sm border border-gray-200"
-      />
-    )}
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex items-end gap-2 ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {msg.type === 'bot' && (
+                  <img
+                    src="./bot-avatar.jpg"
+                    alt="Bot Avatar"
+                    className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0"
+                  />
+                )}
 
-    <div
-      className={`max-w-[75%] rounded-2xl px-4 py-3 ${
-        msg.type === 'user'
-          ? 'bg-blue-500 text-white'
-          : 'bg-white text-gray-800 shadow-sm'
-      }`}
-    >
-      <p
-        className="whitespace-pre-wrap"
-        dangerouslySetInnerHTML={{
-          __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        }}
-      ></p>
-      {msg.isButton && msg.buttons && (
-        <div className="flex gap-2 mt-3">
-          {msg.buttons.map((btn, i) => (
-            <button
-              key={i}
-              onClick={() => handleButtonClick(btn.action)}
-              className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition-colors"
-            >
-              {btn.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-
-    {msg.type === 'user' && (
-      <img
-        src="public/user-avatar.jpg"
-        alt="User Avatar"
-        className="w-10 h-10 rounded-full ml-2 shadow-sm border border-gray-200"
-      />
-    )}
-  </div>
-))}
-
+                <div
+                  className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                    msg.type === 'user'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white text-gray-800 shadow-sm'
+                  }`}
+                >
+                  <p
+                    className="whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{
+                      __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    }}
+                  ></p>
                   {msg.isButton && msg.buttons && (
                     <div className="flex gap-2 mt-3">
                       {msg.buttons.map((btn, i) => (
@@ -613,6 +585,14 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
                     </div>
                   )}
                 </div>
+
+                {msg.type === 'user' && (
+                  <img
+                    src="./user-avatar.jpg"
+                    alt="User Avatar"
+                    className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0"
+                  />
+                )}
               </div>
             ))}
             
@@ -661,6 +641,3 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
   </script>
 </body>
 </html>
-
-
-
