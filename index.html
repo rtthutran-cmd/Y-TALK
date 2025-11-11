@@ -140,9 +140,12 @@
   setTypingTimer(timer);
   
   // Keep keyboard visible on mobile
-  setTimeout(() => {
-    inputRef.current?.focus();
-  }, 100);
+ setTimeout(() => {
+  if (inputRef.current) {
+    inputRef.current.focus();
+    inputRef.current.click();
+  }
+}, 150);
 };
       const processMessages = async (pendingMessages) => {
         if (pendingMessages.length === 0) return;
@@ -198,9 +201,12 @@
 } finally {
   setIsLoading(false);
   // Refocus input after bot responds
-  setTimeout(() => {
-    inputRef.current?.focus();
-  }, 100);
+ setTimeout(() => {
+  if (inputRef.current) {
+    inputRef.current.focus();
+    inputRef.current.click();
+  }
+}, 150);
 }
 
       const buildSystemPrompt = () => {
@@ -647,6 +653,7 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
   </script>
 </body>
 </html>
+
 
 
 
