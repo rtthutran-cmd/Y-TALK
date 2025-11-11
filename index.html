@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Conversation Coach</title>
+  <title>Y-TALK - Conversation Buddy</title>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -116,37 +116,37 @@
         }]);
       };
 
-     const handleSend = () => {
-  if (!input.trim() || isLoading) return;
-  
-  const userMessage = input.trim();
-  addUserMessage(userMessage);
-  setInput('');
-  
-  const updatedPending = [...conversationState.pendingMessages, userMessage];
-  setConversationState(prev => ({
-    ...prev,
-    pendingMessages: updatedPending
-  }));
+      const handleSend = () => {
+        if (!input.trim() || isLoading) return;
+        
+        const userMessage = input.trim();
+        addUserMessage(userMessage);
+        setInput('');
+        
+        const updatedPending = [...conversationState.pendingMessages, userMessage];
+        setConversationState(prev => ({
+          ...prev,
+          pendingMessages: updatedPending
+        }));
 
-  if (typingTimer) {
-    clearTimeout(typingTimer);
-  }
+        if (typingTimer) {
+          clearTimeout(typingTimer);
+        }
 
-  const timer = setTimeout(() => {
-    processMessages(updatedPending);
-  }, 2000);
-  
-  setTypingTimer(timer);
-  
-  // Keep keyboard visible on mobile
- setTimeout(() => {
-  if (inputRef.current) {
-    inputRef.current.focus();
-    inputRef.current.click();
-  }
-}, 150);
-};
+        const timer = setTimeout(() => {
+          processMessages(updatedPending);
+        }, 2000);
+        
+        setTypingTimer(timer);
+        
+        // Keep keyboard visible on mobile
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        }, 100);
+      };
+
       const processMessages = async (pendingMessages) => {
         if (pendingMessages.length === 0) return;
         
@@ -195,19 +195,19 @@
           
           addBotMessage(botResponse);
           
-      } catch (error) {
-  console.error('API Error:', error);
-  addBotMessage("Sorry, I'm having trouble connecting right now. Can you try again?");
-} finally {
-  setIsLoading(false);
-  // Refocus input after bot responds
- setTimeout(() => {
-  if (inputRef.current) {
-    inputRef.current.focus();
-    inputRef.current.click();
-  }
-}, 150);
-}
+        } catch (error) {
+          console.error('API Error:', error);
+          addBotMessage("Sorry, I'm having trouble connecting right now. Can you try again?");
+        } finally {
+          setIsLoading(false);
+          // Refocus input after bot responds
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.focus();
+            }
+          }, 100);
+        }
+      };
 
       const buildSystemPrompt = () => {
         const basePrompt = `You are a warm, empathetic conversation coach helping middle school and high school students prepare to talk to adults. Your tone is like a supportive older sibling - warm, non-judgmental, and encouraging. Use simple language.
@@ -544,9 +544,9 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
         <div className="flex flex-col h-screen bg-gradient-to-br from-blue-50 to-purple-50">
           <div className="bg-white shadow-sm border-b border-gray-200 p-4 flex justify-between items-center">
             <div>
-  <h1 className="text-xl font-bold text-gray-800">Y-TALK: Conversation Buddy</h1>
-  <p className="text-sm text-gray-500">Turn your thoughts into messages you can say to adults</p>
-</div>
+              <h1 className="text-xl font-bold text-gray-800">Y-TALK - Conversation Buddy</h1>
+              <p className="text-sm text-gray-500">Turn your thoughts into messages you can say to adults</p>
+            </div>
             <button
               onClick={resetConversation}
               className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-700 transition-colors"
@@ -653,7 +653,3 @@ Then say: "Got it. Good luck with your conversation! Let me know how it goes and
   </script>
 </body>
 </html>
-
-
-
-
