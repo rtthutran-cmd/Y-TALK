@@ -647,3 +647,310 @@ IMPORTANT: Make the script feel authentic and spoken, not written or formal.`;
               updates.problem_theme = 'school';
             } else if (lowerUser.includes('parent') || lowerUser.includes('mom') || lowerUser.includes('dad') || lowerUser.includes('family') || lowerUser.includes('sibling')) {
               updates.problem_theme = 'family';
+            } else if (lowerUser.includes('friend') || lowerUser.includes('lonely')) {
+              updates.problem_theme = 'friends';
+            }
+          }
+
+          if ((updates.adult || conversationState.adult) && (updates.problem_description || conversationState.problem_description)) {
+            if (lowerBot.includes('what happened')) {
+              updates.step = 'initial_story';
+            } else {
+              updates.step = 'identification';
+            }
+          } else {
+            updates.step = 'identification';
+          }
+        }
+
+        // Initial story - detect parts AND if they've talked before
+        if (conversationState.step === 'initial_story') {
+          if (!conversationState.has_observation && userMessage.length > 20) {
+            updates.has_observation = true;
+            updates.observation_text_raw = userMessage;
+          }
+
+          // Detect if they've talked before
+          const talkedBeforeKeywords = ['last time', 'when i talked', 'when i brought this up', 'previously', 'before when', 'already talked', 'we discussed'];
+          const neverTalkedKeywords = ['never talked', 'first time', 'haven\'t talked', 'never brought this up', 'haven\'t mentioned'];
+          
+          if (!conversationState.talked_before_detected) {
+            if (talkedBeforeKeywords.some(kw => lowerUser.includes(kw))) {
+              updates.talked_before = 'yes';
+              updates.talked_before_detected = true;
+            } else if (neverTalkedKeywords.some(kw => lowerUser.includes(kw))) {
+              updates.talked_before = 'no';
+              updates.talked_before_detected = true;
+            }
+          }
+
+          if (lowerBot.includes('what do you think') || lowerBot.includes('what\'s going through your mind')) {
+            updates.step = 'collecting_thought';
+          } else if (lowerBot.includes('how does this make you feel') || lowerBot.includes('how do you feel')) {
+            updates.step = 'collecting_feeling';
+          } else if (lowerBot.includes('what do you want to happen') || lowerBot.includes('what outcome')) {
+            updates.step = 'collecting_want';
+          } else if (lowerBot.includes('here\'s what we have') || lowerBot.includes('whole message')) {
+            updates.step = 'show_summary';
+          }
+        }
+
+        // Collecting parts - also check for talked_before mentions
+        if (conversationState.step === 'collecting_thought') {
+          const declined = lowerUser.includes('idk') || lowerUser.includes('i don\'t know') || lowerUser.includes('rather not');
+          if (!declined && userMessage.length > 3) {
+            updates.has_thought = true;
+            updates.thought_text_raw = userMessage;
+          }
+
+          const talkedBeforeKeywords = ['last time', 'when i talked', 'when i brought this up', 'previously', 'before when'];
+          const neverTalkedKeywords = ['never talked', 'first time', 'haven\'t talked', 'never brought this up'];
+          
+          if (!conversationState.talked_before_detected) {
+            if (talkedBeforeKeywords.some(kw => lowerUser.includes(kw))) {
+              updates.talked_before = 'yes';
+              updates.talked_before_detected = true;
+            } else if (neverTalkedKeywords.some(kw => lowerUser.includes(kw))) {
+              updates.talked_before = 'no';
+              updates.talked_before_detected = true;
+            }
+          }
+
+          if (lowerBot.includes('how does this make you feel') || lowerBot.includes('how do you feel')) {
+            updates.step = 'collecting_feeling';
+          } else if (lowerBot.includes('what do you want')) {
+            updates.step = 'collecting_want';
+          } else if (lowerBot.includes('here\'s what we have')) {
+            updates.step = 'show_summary';
+          }
+        }
+
+        if (conversationState.step === 'collecting_feeling') {
+          const declined = lowerUser.includes('idk') || lowerUser.includes('i don\'t know') || lowerUser.includes('rather not');
+          if (!declined && userMessage.length > 2) {
+            updates.has_feeling = true;
+            updates.feeling_text_raw = userMessage;
+          }
+
+          if (lowerBot.includes('why do you feel') || lowerBot.includes('what makes you feel')) {
+            updates.step = 'feeling_reasoning';
+          } else if (lowerBot.includes('what do you want')) {
+            updates.step = 'collecting_want';
+          } else if (lowerBot.includes('here\'s what we have')) {
+            updates.step = 'show_summary';
+          }
+        }
+
+        if (conversationState.step === 'feeling_reasoning') {
+          if (userMessage.length > 3) {
+            updates.feeling_reasoning = userMessage;
+          }
+
+          if (lowerBot.includes('what do you want')) {
+            updates.step = 'collecting_want';
+          } else if (lowerBot.includes('here\'s what we have')) {
+            updates.step = 'show_summary';
+          }
+        }
+
+        if (conversationState.step === 'collecting_want') {
+          const declined = lowerUser.includes('idk') || lowerUser.includes('i don\'t know') || lowerUser.includes('rather not');
+          if (!declined && userMessage.length > 3) {
+            updates.has_want = true;
+            updates.want_text_raw = userMessage;
+          }
+
+          if (lowerBot.includes('here\'s what we have')) {
+            updates.step = 'show_summary';
+          }
+        }
+
+        if (conversationState.step === 'show_summary') {
+          if (lowerBot.includes('have you ever talked') || lowerBot.includes('talked to your')) {
+            updates.step = 'ask_talked_before';
+          } else if (lowerBot.includes('how did that conversation go')) {
+            updates.step = 'ask_how_went';
+          } else if (lowerBot.includes('first time bringing this up') || lowerBot.includes('starting this conversation')) {
+            updates.step = 'branch_a_intro';
+            updates.branch = 'A';
+          }
+        }
+
+        if (conversationState.step === 'ask_talked_before') {
+          const saidYes = lowerUser.includes('yes') || lowerUser.includes('yeah') || lowerUser.includes('i have') || lowerUser.includes('we talked');
+          const saidNo = lowerUser.includes('no') || lowerUser.includes('never') || lowerUser.includes('first time') || lowerUser.includes('haven\'t');
+          
+          if (saidYes) {
+            updates.talked_before = 'yes';
+            if (lowerBot.includes('how did that')) {
+              updates.step = 'ask_how_went';
+            }
+          } else if (saidNo) {
+            updates.talked_before = 'no';
+            updates.step = 'branch_a_intro';
+            updates.branch = 'A';
+          }
+        }
+
+        if (conversationState.step === 'ask_how_went') {
+          const wentWell = lowerUser.includes('good') || lowerUser.includes('ok') || lowerUser.includes('okay') || lowerUser.includes('fine') || lowerUser.includes('well') || lowerUser.includes('listened');
+          const wentPoorly = lowerUser.includes('bad') || lowerUser.includes('poorly') || lowerUser.includes('terrible') || lowerUser.includes('yelled') || lowerUser.includes('dismissed') || lowerUser.includes('didn\'t listen') || lowerUser.includes('shut me down') || lowerUser.includes('ignored');
+          
+          if (wentWell) {
+            updates.went_well = true;
+            updates.step = 'branch_b1_intro';
+            updates.branch = 'B1';
+          } else if (wentPoorly) {
+            updates.went_well = false;
+            updates.step = 'branch_b2_intro';
+            updates.branch = 'B2';
+          }
+        }
+
+        if (conversationState.step === 'branch_a_intro' || conversationState.step === 'branch_b1_intro' || conversationState.step === 'branch_b2_intro') {
+          const wantsScript = lowerUser.includes('script') || lowerUser.includes('see it') || lowerUser.includes('show me') || lowerUser.includes('ready');
+          const wantsTips = lowerUser.includes('tips') || lowerUser.includes('more') || lowerUser.includes('ok') || lowerUser.includes('sure') || lowerUser.includes('yeah');
+          
+          if (wantsScript) {
+            updates.step = 'generate_script';
+          } else if (wantsTips || !wantsScript) {
+            updates.step = 'tips_during';
+            updates.shownTipsBefore = true;
+          }
+        }
+
+        if (conversationState.step === 'tips_during') {
+          const wantsScript = lowerUser.includes('script') || lowerUser.includes('see it') || lowerUser.includes('show me') || lowerUser.includes('ready');
+          
+          if (wantsScript) {
+            updates.step = 'generate_script';
+          } else {
+            updates.step = 'handling_responses';
+            updates.shownTipsDuring = true;
+          }
+        }
+
+        if (conversationState.step === 'handling_responses') {
+          if (lowerUser.includes('1') || lowerUser.includes('minimize')) {
+            updates.step = 'handling_response_1';
+          } else if (lowerUser.includes('2') || lowerUser.includes('hurt') || lowerUser.includes('about them')) {
+            updates.step = 'handling_response_2';
+          } else if (lowerUser.includes('3') || lowerUser.includes('guilt')) {
+            updates.step = 'handling_response_3';
+          } else if (lowerUser.includes('4') || lowerUser.includes('busy') || lowerUser.includes('don\'t want')) {
+            updates.step = 'handling_response_4';
+          }
+        }
+
+        if (conversationState.step === 'handling_response_1' || conversationState.step === 'handling_response_2' || 
+            conversationState.step === 'handling_response_3' || conversationState.step === 'handling_response_4') {
+          const wantsAnother = lowerUser.includes('another') || lowerUser.includes('more') || /^[1-4]$/.test(userMessage.trim());
+          const wantsScript = lowerUser.includes('script') || lowerUser.includes('ready') || lowerUser.includes('see');
+          
+          if (wantsAnother) {
+            updates.step = 'handling_responses';
+          } else if (wantsScript) {
+            updates.step = 'generate_script';
+            updates.shownHandlingResponses = true;
+          }
+        }
+
+        return updates;
+      };
+
+      return (
+        <div className="flex flex-col h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+          <div className="bg-white shadow-sm border-b border-gray-200 p-4 flex justify-between items-center">
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">Y-TALK - Conversation Buddy</h1>
+              <p className="text-sm text-gray-500">Turn your thoughts into messages you can say to adults</p>
+            </div>
+            <button
+              onClick={resetConversation}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-700 transition-colors"
+            >
+              <RotateCcw size={16} />
+              Start Over
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex items-end gap-2 ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {msg.type === 'bot' && (
+                  <img
+                    src="./bot-avatar.jpg"
+                    alt="Bot Avatar"
+                    className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0"
+                  />
+                )}
+
+                <div
+                  className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                    msg.type === 'user'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white text-gray-800 shadow-sm'
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap" dangerouslySetInnerHTML={{
+                    __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                  }}></p>
+                </div>
+
+                {msg.type === 'user' && (
+                  <img
+                    src="./user-avatar.jpg"
+                    alt="User Avatar"
+                    className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0"
+                  />
+                )}
+              </div>
+            ))}
+            
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-white rounded-2xl px-4 py-3 shadow-sm">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="bg-white border-t border-gray-200 p-4">
+            <div className="flex gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="Type your message..."
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSend}
+                disabled={isLoading || !input.trim()}
+                className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                <Send size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.render(<ConversationCoach />, document.getElementById('root'));
+  </script>
+</body>
+</html>
